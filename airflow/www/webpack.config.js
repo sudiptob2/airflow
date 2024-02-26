@@ -267,10 +267,6 @@ const config = {
           from: "templates/swagger-ui",
           to: `${BUILD_DIR}/swagger-ui`,
         },
-        {
-          from: "node_modules/swagger-ui-dist",
-          to: `${BUILD_DIR}/swagger-ui`,
-        },
       ],
     }),
     new LicensePlugin({
