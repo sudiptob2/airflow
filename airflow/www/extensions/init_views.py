@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import warnings
 from functools import cached_property
 from pathlib import Path
@@ -250,7 +249,6 @@ def init_api_connexion(connexion_app: connexion.FlaskApp) -> None:
         specification = safe_load(f)
     swagger_ui_options = SwaggerUIOptions(
         swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
-        swagger_ui_path=os.fspath(ROOT_APP_DIR.joinpath("www", "static", "dist", "swagger-ui")),
     )
 
     connexion_app.add_api(
