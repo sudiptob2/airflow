@@ -24,7 +24,6 @@ import pytest
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.remote_user_middleware import RemoteUserMiddleware
 
 pytestmark = pytest.mark.db_test
 
@@ -69,13 +68,12 @@ def configured_app(minimal_app_for_api):
 class TestGetConfig:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        configured_app.add_middleware(RemoteUserMiddleware, remote_user="test")
         self.connexion_app = configured_app
         self.client = self.connexion_app.test_client()  # type:ignore
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_text_plain(self, mock_as_dict):
-        response = self.client.get("/api/v1/config", headers={"Accept": "text/plain"})
+        response = self.client.get("/api/v1/config", headers={"Accept": "text/plain", "REMOTE_USER": "test"})
         mock_as_dict.assert_called_with(display_source=False, display_sensitive=True)
         assert response.status_code == 200
         expected = textwrap.dedent(
@@ -88,7 +86,7 @@ class TestGetConfig:
         smtp_mail_from = airflow@example.com
         """
         )
-        assert expected == response.data.decode()
+        assert expected == response.text
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
