@@ -35,7 +35,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 
 pytestmark = pytest.mark.db_test
@@ -218,10 +218,10 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            environ_overrides={"REMOTE_USER": username},
+            headers={"REMOTE_USER": username},
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
@@ -264,9 +264,9 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
-        data = response.json
+        data = response.json()
 
         # this logic in effect replicates mock.ANY for these values
         values_to_ignore = {
@@ -321,10 +321,10 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session, task_instances=[{"state": State.REMOVED}], update_extras=True)
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
@@ -369,11 +369,11 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
 
-        assert response.json == {
+        assert response.json() == {
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
@@ -428,11 +428,11 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             response = self.client.get(
                 "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
                 f"/print_the_context/{map_index}",
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
 
-            assert response.json == {
+            assert response.json() == {
                 "dag_id": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00+00:00",
@@ -466,28 +466,28 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         response = self.client.get(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
         )
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
     def test_raises_404_for_nonexistent_task_instance(self):
         response = self.client.get(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/nonexistent_task",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json["title"] == "Task instance not found"
+        assert response.json()["title"] == "Not Found"
 
     def test_unmapped_map_index_should_return_404(self, session):
         self.create_task_instances(session)
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-1",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
 
@@ -497,7 +497,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             response = self.client.get(
                 "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/"
                 f"taskInstances/print_the_context/{index}",
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
             assert response.status_code == 404
 
@@ -506,7 +506,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/"
             "taskInstances/print_the_context/listMapped",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
 
@@ -669,10 +669,10 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             update_extras=update_extras,
             task_instances=task_instances,
         )
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == expected_ti
-        assert len(response.json["task_instances"]) == expected_ti
+        assert response.json()["total_entries"] == expected_ti
+        assert len(response.json()["task_instances"]) == expected_ti
 
     @pytest.mark.parametrize(
         "task_instances, user, expected_ti",
@@ -713,36 +713,34 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ],
                 dag_id=dag_id,
             )
-        response = self.client.get(
-            "/api/v1/dags/~/dagRuns/~/taskInstances", environ_overrides={"REMOTE_USER": user}
-        )
+        response = self.client.get("/api/v1/dags/~/dagRuns/~/taskInstances", headers={"REMOTE_USER": user})
         assert response.status_code == 200
-        assert response.json["total_entries"] == expected_ti
-        assert len(response.json["task_instances"]) == expected_ti
+        assert response.json()["total_entries"] == expected_ti
+        assert len(response.json()["task_instances"]) == expected_ti
 
     def test_should_respond_200_for_dag_id_filter(self, session):
         self.create_task_instances(session)
         self.create_task_instances(session, dag_id="example_skip_dag")
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         assert response.status_code == 200
         count = session.query(TaskInstance).filter(TaskInstance.dag_id == "example_python_operator").count()
-        assert count == response.json["total_entries"]
-        assert count == len(response.json["task_instances"])
+        assert count == response.json()["total_entries"]
+        assert count == len(response.json()["task_instances"])
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances",
         )
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -903,12 +901,12 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": username},
+            headers={"REMOTE_USER": username},
             json=payload,
         )
-        assert response.status_code == 200, response.json
-        assert expected_ti_count == response.json["total_entries"]
-        assert expected_ti_count == len(response.json["task_instances"])
+        assert response.status_code == 200, response.json()
+        assert expected_ti_count == response.json()["total_entries"]
+        assert expected_ti_count == len(response.json()["task_instances"])
 
     @pytest.mark.parametrize(
         "task_instances, payload, expected_ti_count",
@@ -942,12 +940,12 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
-        assert response.status_code == 200, response.json
-        assert expected_ti_count == response.json["total_entries"]
-        assert expected_ti_count == len(response.json["task_instances"])
+        assert response.status_code == 200, response.json()
+        assert expected_ti_count == response.json()["total_entries"]
+        assert expected_ti_count == len(response.json()["task_instances"])
 
     @pytest.mark.parametrize(
         "payload, expected_ti, total_ti",
@@ -966,24 +964,24 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         self.create_task_instances(session, dag_id="example_skip_dag")
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 200
-        assert len(response.json["task_instances"]) == expected_ti
-        assert response.json["total_entries"] == total_ti
+        assert len(response.json()["task_instances"]) == expected_ti
+        assert response.json()["total_entries"] == total_ti
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
             json={"dag_ids": ["example_python_operator", "example_skip_dag"]},
         )
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
             json={"dag_ids": ["example_python_operator", "example_skip_dag"]},
         )
         assert response.status_code == 403
@@ -995,11 +993,11 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
 
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": "test_read_only_one_dag"},
+            headers={"REMOTE_USER": "test_read_only_one_dag"},
             json=payload,
         )
         assert response.status_code == 403
-        assert response.json == {
+        assert response.json() == {
             "detail": "User not allowed to access some of these DAGs: ['example_python_operator', 'example_skip_dag']",
             "status": 403,
             "title": "Forbidden",
@@ -1009,19 +1007,19 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     def test_should_raise_400_for_no_json(self):
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json["detail"] == "Request body must not be empty"
+        assert response.json()["detail"] == "RequestBody is required"
 
     def test_should_raise_400_for_unknown_fields(self):
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={"unknown_field": "unknown_value"},
         )
         assert response.status_code == 400
-        assert response.json["detail"] == "{'unknown_field': ['Unknown field.']}"
+        assert response.json()["detail"] == "{'unknown_field': ['Unknown field.']}"
 
     @pytest.mark.parametrize(
         "payload, expected",
@@ -1039,11 +1037,11 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         response = self.client.post(
             "/api/v1/dags/~/dagRuns/~/taskInstances/list",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 400
-        assert expected in response.json["detail"]
+        assert expected in response.json()["detail"]
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
@@ -1242,11 +1240,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.flask_app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{request_dag}/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 200
-        assert len(response.json["task_instances"]) == expected_ti
+        assert len(response.json()["task_instances"]) == expected_ti
 
     @mock.patch("airflow.api_connexion.endpoints.task_instance_endpoint.clear_task_instances")
     def test_clear_taskinstance_is_called_with_queued_dr_state(self, mock_clearti, session):
@@ -1257,7 +1255,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.flask_app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 200
@@ -1276,7 +1274,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.flask_app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 200
@@ -1327,7 +1325,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
 
@@ -1372,8 +1370,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         for task_instance in expected_response:
-            assert task_instance in response.json["task_instances"]
-        assert 6 == len(response.json["task_instances"])
+            assert task_instance in response.json()["task_instances"]
+        assert 6 == len(response.json()["task_instances"])
         assert 0 == failed_dag_runs, 0
 
     def test_should_respond_200_with_dag_run_id(self, session):
@@ -1419,7 +1417,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert 200 == response.status_code
@@ -1431,8 +1429,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "task_id": "print_the_context",
             },
         ]
-        assert response.json["task_instances"] == expected_response
-        assert 1 == len(response.json["task_instances"])
+        assert response.json()["task_instances"] == expected_response
+        assert 1 == len(response.json()["task_instances"])
 
     def test_should_respond_200_with_include_past(self, session):
         dag_id = "example_python_operator"
@@ -1477,7 +1475,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert 200 == response.status_code
@@ -1520,8 +1518,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         for task_instance in expected_response:
-            assert task_instance in response.json["task_instances"]
-        assert 6 == len(response.json["task_instances"])
+            assert task_instance in response.json()["task_instances"]
+        assert 6 == len(response.json()["task_instances"])
 
     def test_should_respond_200_with_include_future(self, session):
         dag_id = "example_python_operator"
@@ -1565,7 +1563,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
 
@@ -1609,8 +1607,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         for task_instance in expected_response:
-            assert task_instance in response.json["task_instances"]
-        assert 6 == len(response.json["task_instances"])
+            assert task_instance in response.json()["task_instances"]
+        assert 6 == len(response.json()["task_instances"])
 
     def test_should_respond_404_for_nonexistent_dagrun_id(self, session):
         dag_id = "example_python_operator"
@@ -1639,15 +1637,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
 
         assert 404 == response.status_code
-        assert (
-            response.json["title"]
-            == "Dag Run id TEST_DAG_RUN_ID_100 not found in dag example_python_operator"
-        )
+        assert response.json()["title"] == "Not Found"
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
@@ -1660,13 +1655,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "include_subdags": True,
             },
         )
-        assert_401(response)
+        assert response.status_code == 401
 
     @pytest.mark.parametrize("username", ["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
     def test_should_raise_403_forbidden(self, username: str):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": username},
+            headers={"REMOTE_USER": username},
             json={
                 "dry_run": False,
                 "reset_dag_runs": True,
@@ -1704,16 +1699,16 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.flask_app.dag_bag.sync_to_db()
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected
+        assert response.json()["detail"] == expected
 
     def test_raises_404_for_non_existent_dag(self):
         response = self.client.post(
             "/api/v1/dags/non-existent-dag/clearTaskInstances",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "reset_dag_runs": True,
@@ -1723,7 +1718,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json["title"] == "Dag id non-existent-dag not found"
+        assert response.json()["title"] == "Not Found"
 
 
 class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
@@ -1739,7 +1734,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1752,7 +1747,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "task_instances": [
                 {
                     "dag_id": "example_python_operator",
@@ -1788,7 +1783,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1801,7 +1796,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "task_instances": [
                 {
                     "dag_id": "example_python_operator",
@@ -1891,11 +1886,11 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == code
-        assert response.json["detail"] == error
+        assert response.json()["detail"] == error
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
@@ -1911,13 +1906,13 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 "new_state": "failed",
             },
         )
-        assert_401(response)
+        assert response.status_code == 401
 
     @pytest.mark.parametrize("username", ["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
     def test_should_raise_403_forbidden(self, username):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": username},
+            headers={"REMOTE_USER": username},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1934,7 +1929,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     def test_should_raise_404_not_found_dag(self):
         response = self.client.post(
             "/api/v1/dags/INVALID_DAG/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1954,7 +1949,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         date = DEFAULT_DATETIME_1 + dt.timedelta(days=1)
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
@@ -1967,7 +1962,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-        assert response.json["detail"] == (
+        assert response.json()["detail"] == (
             f"Task instance not found for task 'print_the_context' on execution_date {date}"
         )
         assert mock_set_task_instance_state.call_count == 0
@@ -1975,7 +1970,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     def test_should_raise_404_not_found_task(self):
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "INVALID_TASK",
@@ -2025,11 +2020,11 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected
+        assert response.json()["detail"] == expected
 
 
 class TestPatchTaskInstance(TestTaskInstanceEndpoint):
@@ -2053,14 +2048,14 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "new_state": NEW_STATE,
             },
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_id": "example_python_operator",
             "dag_run_id": "TEST_DAG_RUN_ID",
             "execution_date": "2020-01-01T00:00:00+00:00",
@@ -2092,14 +2087,14 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "new_state": NEW_STATE,
             },
         )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "dag_id": "example_python_operator",
             "dag_run_id": "TEST_DAG_RUN_ID",
             "execution_date": "2020-01-01T00:00:00+00:00",
@@ -2115,7 +2110,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "new_state": NEW_STATE,
@@ -2124,11 +2119,10 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         response2 = self.client.get(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
-            json={},
+            headers={"REMOTE_USER": "test"},
         )
         assert response2.status_code == 200
-        assert response2.json["state"] == NEW_STATE
+        assert response2.json()["state"] == NEW_STATE
 
     def test_should_update_task_instance_state_default_dry_run_to_true(self, session):
         self.create_task_instances(session)
@@ -2137,7 +2131,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "new_state": NEW_STATE,
             },
@@ -2145,11 +2139,10 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         response2 = self.client.get(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
-            json={},
+            headers={"REMOTE_USER": "test"},
         )
         assert response2.status_code == 200
-        assert response2.json["state"] == NEW_STATE
+        assert response2.json()["state"] == NEW_STATE
 
     def test_should_update_mapped_task_instance_state(self, session):
         NEW_STATE = "failed"
@@ -2162,7 +2155,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         self.client.patch(
             f"{self.ENDPOINT_URL}/{map_index}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "new_state": NEW_STATE,
@@ -2171,11 +2164,10 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         response2 = self.client.get(
             f"{self.ENDPOINT_URL}/{map_index}",
-            environ_overrides={"REMOTE_USER": "test"},
-            json={},
+            headers={"REMOTE_USER": "test"},
         )
         assert response2.status_code == 200
-        assert response2.json["state"] == NEW_STATE
+        assert response2.json()["state"] == NEW_STATE
 
     @pytest.mark.parametrize(
         "error, code, payload",
@@ -2193,51 +2185,51 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     def test_should_handle_errors(self, error, code, payload, session):
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == code
-        assert response.json["detail"] == error
+        assert response.json()["detail"] == error
 
     def test_should_raise_400_for_unknown_fields(self, session):
         self.create_task_instances(session)
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dryrun": True,
                 "new_state": "failed",
             },
         )
         assert response.status_code == 400
-        assert response.json["detail"] == "{'dryrun': ['Unknown field.']}"
+        assert response.json()["detail"] == "{'dryrun': ['Unknown field.']}"
 
     def test_should_raise_404_for_non_existent_dag(self):
         response = self.client.patch(
             "/api/v1/dags/non-existent-dag/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "new_state": "failed",
             },
         )
         assert response.status_code == 404
-        assert response.json["title"] == "DAG not found"
-        assert response.json["detail"] == "DAG 'non-existent-dag' not found"
+        assert response.json()["title"] == "Not Found"
+        assert response.json()["detail"] == "DAG 'non-existent-dag' not found"
 
     def test_should_raise_404_for_non_existent_task_in_dag(self):
         response = self.client.patch(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/non_existent_task",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
                 "new_state": "failed",
             },
         )
         assert response.status_code == 404
-        assert response.json["title"] == "Task not found"
+        assert response.json()["title"] == "Not Found"
         assert (
-            response.json["detail"] == "Task 'non_existent_task' not found in DAG 'example_python_operator'"
+            response.json()["detail"] == "Task 'non_existent_task' not found in DAG 'example_python_operator'"
         )
 
     def test_should_raises_401_unauthenticated(self):
@@ -2248,13 +2240,13 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "new_state": "failed",
             },
         )
-        assert_401(response)
+        assert response.status_code == 401
 
     @pytest.mark.parametrize("username", ["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
     def test_should_raise_403_forbidden(self, username):
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": username},
+            headers={"REMOTE_USER": username},
             json={
                 "dry_run": True,
                 "new_state": "failed",
@@ -2265,7 +2257,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     def test_should_raise_404_not_found_dag(self):
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "new_state": "failed",
@@ -2276,7 +2268,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     def test_should_raise_404_not_found_task(self):
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "new_state": "failed",
@@ -2310,12 +2302,12 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         response = self.client.patch(
             self.ENDPOINT_URL,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
             json=payload,
         )
         assert response.status_code == 400
-        assert response.json["detail"] == expected
-        assert response.json["detail"] == expected
+        assert response.json()["detail"] == expected
+        assert response.json()["detail"] == expected
 
 
 class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
@@ -2333,10 +2325,10 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
             "print_the_context/setNote",
             json={"note": new_note_value},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200, response.text
-        assert response.json == {
+        assert response.json() == {
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
@@ -2387,11 +2379,11 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
                 f"print_the_context/{map_index}/setNote",
                 json={"note": new_note_value},
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200, response.text
 
-            assert response.json == {
+            assert response.json() == {
                 "dag_id": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00+00:00",
@@ -2432,10 +2424,10 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
             "print_the_context/setNote",
             json={"note": new_note_value},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200, response.text
-        assert response.json["note"] == new_note_value
+        assert response.json()["note"] == new_note_value
 
     def test_should_raise_400_for_unknown_fields(self, session):
         self.create_task_instances(session)
@@ -2443,10 +2435,10 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
             "print_the_context/setNote",
             json={"note": "a valid field", "not": "an unknown field"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json["detail"] == "{'not': ['Unknown field.']}"
+        assert response.json()["detail"] == "{'not': ['Unknown field.']}"
 
     def test_should_raises_401_unauthenticated(self):
         for map_index in ["", "/0"]:
@@ -2458,7 +2450,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 url,
                 json={"note": "I am setting a note while being unauthenticated."},
             )
-            assert_401(response)
+            assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         for map_index in ["", "/0"]:
@@ -2466,7 +2458,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
                 f"print_the_context{map_index}/setNote",
                 json={"note": "I am setting a note without the proper permissions."},
-                environ_overrides={"REMOTE_USER": "test_no_permissions"},
+                headers={"REMOTE_USER": "test_no_permissions"},
             )
             assert response.status_code == 403
 
@@ -2477,6 +2469,6 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 f"api/v1/dags/INVALID_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
                 f"{map_index}/setNote",
                 json={"note": "I am setting a note on a DAG that doesn't exist."},
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
             assert response.status_code == 404
