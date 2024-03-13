@@ -315,6 +315,7 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: pip install --editable ./dev/breeze/
+      - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
 
