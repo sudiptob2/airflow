@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from urllib.parse import quote_plus
-
 import pytest
 
 from airflow.models import Pool
@@ -55,8 +53,10 @@ def pool_factory(session):
 def test_delete_pool_anonymous_user_no_role(anonymous_client, pool_factory):
     pool = pool_factory()
     resp = anonymous_client.post(f"pool/delete/{pool.id}")
-    assert 302 == resp.status_code  # TODO: this returns 200 now
-    assert f"/login/?next={quote_plus(f'http://localhost/pool/delete/{pool.id}')}" == resp.headers["Location"]
+    assert 200 == resp.status_code
+    # Verify that the pool still exists.
+    with create_session() as session:
+        assert session.query(Pool).filter(Pool.id == pool.id).one()
 
 
 def test_delete_pool_anonymous_user_as_admin(anonymous_client_as_admin, pool_factory):
