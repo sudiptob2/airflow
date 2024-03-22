@@ -37,6 +37,7 @@ def minimal_app_for_api():
             "init_api_error_handlers",
             "init_airflow_session_interface",
             "init_appbuilder_views",
+            "init_cors_middleware",
         ]
     )
     def factory():

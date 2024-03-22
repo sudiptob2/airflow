@@ -35,6 +35,7 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
             "init_flash_views",
             "init_appbuilder_links",
             "init_appbuilder_views",
+            "init_cors_middleware",
             "init_plugins",
             "init_error_handlers",
             "init_api_connexion",
