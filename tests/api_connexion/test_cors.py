@@ -144,5 +144,4 @@ class TestCorsWildcard(BaseTestAuth):
                 "/api/v1/pools", headers={"Authorization": token, "Origin": "http://example.com"}
             )
             assert response.status_code == 200
-            assert response.headers == {}
             assert response.headers["Access-Control-Allow-Origin"] == "*"
