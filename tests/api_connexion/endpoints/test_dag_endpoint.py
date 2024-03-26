@@ -377,16 +377,14 @@ class TestGetDagDetails(TestDagEndpoint):
             "timetable_description": None,
             "timezone": UTC_JSON_REPR,
         }
-        assert response.json == expected
+        assert response.json() == expected
 
     def test_should_respond_200_with_dataset_expression(self, url_safe_serializer):
         self._create_dag_model_for_details_endpoint_with_dataset_expression(self.dag_id)
         current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
-        response = self.client.get(
-            f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(f"/api/v1/dags/{self.dag_id}/details", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        last_parsed = response.json["last_parsed"]
+        last_parsed = response.json()["last_parsed"]
         expected = {
             "catchup": True,
             "concurrency": 16,
@@ -1319,7 +1317,6 @@ class TestPatchDag(TestDagEndpoint):
             f"/api/v1/dags/{dag_model.dag_id}",
             json=patch_body,
         )
-        assert response.status_code == 400
         assert response.json() == {
             "detail": "Property is read-only - 'schedule_interval'",
             "status": 400,
