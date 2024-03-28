@@ -481,7 +481,9 @@ def test_get_task_stats_from_query():
     assert data == expected_data
 
 
-INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d+;")
+# After upgrading to connexion v3, test client returns JSON response instead of HTML response.
+# Returned JSON does not contain the previous pattern.
+INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: 'invalid'")
 
 
 @pytest.mark.parametrize(
@@ -521,4 +523,4 @@ def test_invalid_dates(app, admin_client, url, content):
     """Test invalid date format doesn't crash page."""
     resp = admin_client.get(url, follow_redirects=True)
     assert resp.status_code == 400
-    assert re.search(content, resp.text)
+    assert re.search(content, resp.json()["detail"])
