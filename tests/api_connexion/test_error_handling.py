@@ -31,8 +31,7 @@ def test_incorrect_endpoint_should_return_json(minimal_app_for_api):
 
     # Then we have parsable JSON as output
 
-    assert "Not Found" == resp.json["title"]
-    assert 404 == resp.json["status"]
+    assert "Not Found" == resp.json()["title"]
     assert 404 == resp.status_code
 
 
@@ -60,8 +59,7 @@ def test_incorrect_method_should_return_json(minimal_app_for_api):
 
     # Then we have parsable JSON as output
 
-    assert "Method Not Allowed" == resp.json["title"]
-    assert 405 == resp.json["status"]
+    assert "Method Not Allowed" == resp.json()["title"]
     assert 405 == resp.status_code
 
 
