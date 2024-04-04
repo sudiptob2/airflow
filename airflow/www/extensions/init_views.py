@@ -26,10 +26,12 @@ from typing import TYPE_CHECKING
 import connexion
 import starlette.exceptions
 from connexion import ProblemException, Resolver
+from connexion.datastructures import MediaTypeDict
 from connexion.options import SwaggerUIOptions
 from connexion.problem import problem
+from connexion.validators import AbstractRequestBodyValidator
 
-from airflow.api_connexion.exceptions import problem_error_handler
+from airflow.api_connexion.exceptions import BadRequest, problem_error_handler
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
@@ -203,6 +205,12 @@ class _LazyResolver(Resolver):
         return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
 
 
+class _CustomErrorRequestBodyValidator(AbstractRequestBodyValidator):
+    def _validate(self, body):
+        if self._required and body is None:
+            raise BadRequest(detail="Request body must not be empty")
+
+
 base_paths: list[str] = ["/auth/fab/v1"]  # contains the list of base paths that have api endpoints
 
 
@@ -261,6 +269,13 @@ def init_api_connexion(connexion_app: connexion.FlaskApp) -> None:
         swagger_ui_options=swagger_ui_options,
         strict_validation=True,
         validate_responses=True,
+        validator_map={
+            "body": MediaTypeDict(
+                {
+                    "*/*json": _CustomErrorRequestBodyValidator,
+                }
+            )
+        },
     )
 
 
@@ -283,6 +298,13 @@ def init_api_internal(connexion_app: connexion.FlaskApp, standalone_api: bool = 
         swagger_ui_options=swagger_ui_options,
         strict_validation=True,
         validate_responses=True,
+        validator_map={
+            "body": MediaTypeDict(
+                {
+                    "*/*json": _CustomErrorRequestBodyValidator,
+                }
+            )
+        },
     )
 
 

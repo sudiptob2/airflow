@@ -22,6 +22,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
+from connexion.datastructures import MediaTypeDict
 from connexion.options import SwaggerUIOptions
 from flask import url_for
 from sqlalchemy import select
@@ -83,7 +84,7 @@ from airflow.security.permissions import (
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.www.constants import SWAGGER_BUNDLE
-from airflow.www.extensions.init_views import _LazyResolver
+from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
     import connexion
@@ -166,6 +167,13 @@ class FabAuthManager(BaseAuthManager):
             swagger_ui_options=swagger_ui_options,
             strict_validation=True,
             validate_responses=True,
+            validator_map={
+                "body": MediaTypeDict(
+                    {
+                        "*/*json": _CustomErrorRequestBodyValidator,
+                    }
+                )
+            },
         )
 
     def get_user_display_name(self) -> str:
