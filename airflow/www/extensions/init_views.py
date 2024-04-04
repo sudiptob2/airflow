@@ -27,11 +27,18 @@ import connexion
 import starlette.exceptions
 from connexion import ProblemException, Resolver
 from connexion.datastructures import MediaTypeDict
+from connexion.exceptions import BadRequestProblem
+from connexion.json_schema import (
+    format_error_with_path,
+)
 from connexion.options import SwaggerUIOptions
 from connexion.problem import problem
-from connexion.validators import AbstractRequestBodyValidator
+from connexion.validators import (
+    DefaultsJSONRequestBodyValidator,
+)
+from jsonschema import ValidationError
 
-from airflow.api_connexion.exceptions import BadRequest, problem_error_handler
+from airflow.api_connexion.exceptions import problem_error_handler
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
@@ -205,10 +212,19 @@ class _LazyResolver(Resolver):
         return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
 
 
-class _CustomErrorRequestBodyValidator(AbstractRequestBodyValidator):
+class _CustomErrorRequestBodyValidator(DefaultsJSONRequestBodyValidator):
     def _validate(self, body):
-        if self._required and body is None:
-            raise BadRequest(detail="Request body must not be empty")
+        if not self._nullable and body is None:
+            raise BadRequestProblem("Request body must not be empty")
+        try:
+            return self._validator.validate(body)
+        except ValidationError as exception:
+            error_path_msg = format_error_with_path(exception=exception)
+            # log.error(
+            #     f"Validation error: {exception.message}{error_path_msg}",
+            #     extra={"validator": "body"},
+            # )
+            raise BadRequestProblem(detail=f"{exception.message}{error_path_msg}")
 
 
 base_paths: list[str] = ["/auth/fab/v1"]  # contains the list of base paths that have api endpoints
